@@ -7,6 +7,7 @@ import { effortKey, effortSamplesOf } from './digest/effort'
 import { emptyRun, noChat, same } from './digest/record'
 import { clean, cleaned, parsed } from './digest/text'
 import { readTuning, writeTuning } from './record/autocompact'
+import { homeOf } from './record/home'
 import { linkSession, readHistory } from './record/transcript'
 import { ledgerKey, measuredOf, type Turn } from './state'
 
@@ -206,7 +207,7 @@ function findReport($: EngineInterface) {
 // Read as the fold opens on a missing plugin, so the lines say whether the marketplace must be added first.
 async function findMarket($: EngineInterface) {
   try {
-    const config = (await $.env.get('CLAUDE_CONFIG_DIR')) || `${await $.env.get('HOME')}/.claude`
+    const config = (await $.env.get('CLAUDE_CONFIG_DIR')) || `${await homeOf($)}/.claude`
     const known = parsed<Record<string, { source?: { repo?: string } }>>(await $.fs.read(`${config}/plugins/known_marketplaces.json`))
     cycle.reportMarket = Object.entries(known).find(([, m]) => m.source?.repo === REPORT_REPO)?.[0]
   } catch {

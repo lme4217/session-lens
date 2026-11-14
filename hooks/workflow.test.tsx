@@ -1,6 +1,10 @@
 import { expect, mock, test, type TestBody } from 'claude-code/testing'
 import { CHANNELS, LOADING, P, setTheme, T, tokensOf, type Theme } from './views/palette'
 
+// The engine hands a mock the path as the platform spells it: on Windows with backslashes, and a drive before a path
+// that named none. Read back as it was asked for, so one spelling answers on either.
+const posix = (path: string) => path.replaceAll('\\', '/').replace(/^[A-Za-z]:(?=\/)/, '')
+
 const PANE = {
   plugin: 'session-lens',
   component: 'Pane',
@@ -102,10 +106,10 @@ async function mountLens([$, on]: Parameters<TestBody>, run?: { status: string; 
   on('agent.list', () => ({ value: [] }))
   on('fs.list', async (_, e) => {
     if (gate) await gate
-    if (e.path.endsWith('/subagents/workflows/wf_1')) return { value: [entry('journal.jsonl', Date.parse('2026-01-01T00:10:00.000Z')), ...['w1', 'w2', 'w3', 'w4', ...more].flatMap(a => [entry(`agent-${a}.jsonl`), entry(`agent-${a}.meta.json`)])] }
-    if (e.path.endsWith('/subagents/workflows')) return { value: [dir('wf_1')] }
-    if (e.path.endsWith('/subagents')) return { value: [dir('workflows')] }
-    if (e.path.endsWith('/sid/workflows')) return { value: run ? [entry('wf_1.json')] : [] }
+    if (posix(e.path).endsWith('/subagents/workflows/wf_1')) return { value: [entry('journal.jsonl', Date.parse('2026-01-01T00:10:00.000Z')), ...['w1', 'w2', 'w3', 'w4', ...more].flatMap(a => [entry(`agent-${a}.jsonl`), entry(`agent-${a}.meta.json`)])] }
+    if (posix(e.path).endsWith('/subagents/workflows')) return { value: [dir('wf_1')] }
+    if (posix(e.path).endsWith('/subagents')) return { value: [dir('workflows')] }
+    if (posix(e.path).endsWith('/sid/workflows')) return { value: run ? [entry('wf_1.json')] : [] }
     return { value: [entry('sid.jsonl')] }
   })
   on('store.get', (_, e) => ({ value: kept[e.key] }))
@@ -114,14 +118,14 @@ async function mountLens([$, on]: Parameters<TestBody>, run?: { status: string; 
     return { value: undefined }
   })
   on('fs.read', (_, e) => {
-    if (e.path === '/home/u/.claude/plugins/known_marketplaces.json') {
+    if (posix(e.path) === '/home/u/.claude/plugins/known_marketplaces.json') {
       if (markets === undefined) throw new Error('ENOENT')
       return { value: markets }
     }
-    if (e.path.endsWith('/.claude-plugin/plugin.json')) return { value: JSON.stringify({ version: '9.9.9' }) }
-    if (e.path.endsWith('journal.jsonl')) return { value: journal.map(line).join('\n') }
-    if (e.path.endsWith('/workflows/wf_1.json')) return { value: line({ runId: 'wf_1', timestamp: run?.timestamp, script: 'x', status: run?.status }) }
-    const a = /agent-(\w\d+)/.exec(e.path)?.[1] ?? '?'
+    if (posix(e.path).endsWith('/.claude-plugin/plugin.json')) return { value: JSON.stringify({ version: '9.9.9' }) }
+    if (posix(e.path).endsWith('journal.jsonl')) return { value: journal.map(line).join('\n') }
+    if (posix(e.path).endsWith('/workflows/wf_1.json')) return { value: line({ runId: 'wf_1', timestamp: run?.timestamp, script: 'x', status: run?.status }) }
+    const a = /agent-(\w\d+)/.exec(posix(e.path))?.[1] ?? '?'
     return { value: line({ agentType: 'workflow-subagent', description: `sweep:${a}`, workflowPhase: 'Sweep', spawnDepth: 1 }) }
   })
   on('process.spawn', async function* (_, e) {

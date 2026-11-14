@@ -1,6 +1,7 @@
 import type { EngineInterface } from 'claude-code'
 
 import { clean } from '../digest/text'
+import { homeOf } from './home'
 
 /**
  * A `claude -p` session that a Bash call of this session started, directly or through anything it ran: `pid` its process,
@@ -184,7 +185,7 @@ async function watch($: EngineInterface) {
   const pid = Number(me?.stdout.trim())
   // Without its own pid nothing can be told to descend from it: no child is linked, rather than every claude on the machine.
   if (!me || me.exitCode !== 0 || !Number.isInteger(pid) || pid <= 1) return
-  const h = await $.env.get('HOME')
+  const h = await homeOf($)
   if (!h) return
   watcher.claudePid = pid
   watcher.home = h

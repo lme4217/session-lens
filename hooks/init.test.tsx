@@ -1,5 +1,9 @@
 import { expect, mock, test } from 'claude-code/testing'
 
+// The engine hands a mock the path as the platform spells it: on Windows with backslashes, and a drive before a path
+// that named none. Read back as it was asked for, so one spelling answers on either.
+const posix = (path: string) => path.replaceAll('\\', '/').replace(/^[A-Za-z]:(?=\/)/, '')
+
 const PANE = {
   plugin: 'session-lens',
   component: 'Pane',
@@ -97,7 +101,7 @@ const setUp = (on: On, instructions: { name: string; text: string }[] = [], file
     ...files,
   }
   on('fs.read', (_, e) => {
-    const path = Object.keys(FILES).find(p => JSON.stringify(e).includes(`"${p}"`))
+    const path = Object.keys(FILES).find(p => JSON.stringify({ ...e, path: posix(e.path) }).includes(`"${p}"`))
     if (!path) return { deny: 'ENOENT' }
     calls.memory.push(path)
     if (path === '/work/app/CLAUDE.md' && memoryFails-- > 0) return { deny: 'EBUSY: resource busy' }

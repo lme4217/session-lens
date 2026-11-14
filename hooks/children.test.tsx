@@ -1,6 +1,10 @@
 import type { On } from 'claude-code'
 import { type Engine, expect, mock, test } from 'claude-code/testing'
 
+// The engine hands a mock the path as the platform spells it: on Windows with backslashes, and a drive before a path
+// that named none. Read back as it was asked for, so one spelling answers on either.
+const posix = (path: string) => path.replaceAll('\\', '/').replace(/^[A-Za-z]:(?=\/)/, '')
+
 const PANE = {
   plugin: 'session-lens',
   component: 'Pane',
@@ -59,23 +63,23 @@ function engine(on: On, world: World) {
   on('agent.list', () => ({ value: [] }))
   // A path not in memory falls to the bottom of the chain, which throws as a missing file would.
   on('fs.read', (_, e, next) => {
-    const text = world.files.get(e.path)
+    const text = world.files.get(posix(e.path))
     return text === undefined ? next(e) : { value: text }
   })
   on('fs.stat', (_, e, next) => {
-    const text = world.files.get(e.path)
+    const text = world.files.get(posix(e.path))
     return text === undefined ? next(e) : { value: { kind: 'file' as const, size: text.length, mtimeMs: 0, isLink: false } }
   })
   on('fs.write', (_, e) => {
-    world.files.set(e.path, e.text)
+    world.files.set(posix(e.path), e.text)
     for (const wake of waiting) wake()
     waiting.clear()
     return { value: undefined }
   })
   on('fs.list', (_, e) => {
-    const under = [...world.files.keys()].filter(p => p.startsWith(`${e.path}/`)).map(p => p.slice(e.path.length + 1))
+    const under = [...world.files.keys()].filter(p => p.startsWith(`${posix(e.path)}/`)).map(p => p.slice(posix(e.path).length + 1))
     const names = [...new Set(under.map(p => p.split('/')[0] ?? p))]
-    return { value: names.map(name => ({ name, kind: under.includes(name) ? ('file' as const) : ('dir' as const), size: world.files.get(`${e.path}/${name}`)?.length ?? 0, mtimeMs: 0, isLink: false })) }
+    return { value: names.map(name => ({ name, kind: under.includes(name) ? ('file' as const) : ('dir' as const), size: world.files.get(`${posix(e.path)}/${name}`)?.length ?? 0, mtimeMs: 0, isLink: false })) }
   })
   on('process.run', (_, e) => {
     const [cmd, , script] = e.argv

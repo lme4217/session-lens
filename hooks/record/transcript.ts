@@ -6,6 +6,7 @@ import { type AgentDigest, agentDigestOf, hookKey, sessionOf } from '../digest/s
 import { clean, parsed } from '../digest/text'
 import { type Meta, ms, runOf } from '../digest/turns'
 import { type BashWindow, type ChildLink, guessChildren, readChildren, sessionsDirOf } from './children'
+import { homeOf } from './home'
 
 // Reads the session's record through jq, the file system and the shell: the adapter between the engine's tools and the
 // rules in `digest/`. What it reads is cached here, never in `digest/`.
@@ -236,8 +237,8 @@ async function recordDirOf($: EngineInterface, home: string, id: string, started
 }
 
 async function recordOf($: EngineInterface): Promise<{ home: string; id: string; dir: string }> {
-  const home = await $.env.get('HOME')
-  if (!home) throw new Error('HOME is not set')
+  const home = await homeOf($)
+  if (!home) throw new Error('Neither HOME nor USERPROFILE is set')
   const id = await $.session.id()
   const dir = await recordDirOf($, home, id)
   if (!dir) throw new Error(`No transcript for this session yet (${id}.jsonl): it is written after the first message`)

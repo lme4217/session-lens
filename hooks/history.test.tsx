@@ -14,6 +14,10 @@ import { barCells, waffle } from './views/layout'
 import { COLOR_TOKENS, LOADING, P, SERIES, T } from './views/palette'
 import { barsOf } from './views/organisms/Waterfall'
 
+// The engine hands a mock the path as the platform spells it: on Windows with backslashes, and a drive before a path
+// that named none. Read back as it was asked for, so one spelling answers on either.
+const posix = (path: string) => path.replaceAll('\\', '/').replace(/^[A-Za-z]:(?=\/)/, '')
+
 const PANE = {
   plugin: 'session-lens',
   component: 'Pane',
@@ -116,7 +120,7 @@ test('the pane is built from the session record on disk: session, a tree rooted 
   on('skill.prompt', (_, e) => ({ text: e.text, frontmatter: {} }))
   on('agent.list', () => ({ value: [] }))
   on('fs.list', (_, e) =>
-    JSON.stringify(e).includes('-work-app-plugins-x')
+    JSON.stringify({ ...e, path: posix(e.path) }).includes('-work-app-plugins-x')
       ? { value: [] }
       : { value: [entry('sid.jsonl'), entry('agent-ab12.jsonl'), entry('agent-ab12.meta.json'), entry('agent-ab12.forked-skill.json'), entry('agent-cd34.jsonl'), entry('agent-cd34.meta.json')] },
   )
@@ -128,12 +132,12 @@ test('the pane is built from the session record on disk: session, a tree rooted 
     '/plugins/off/hooks/hooks.json': { hooks: { Stop: [{ hooks: [{ type: 'command', command: '/home/u/bin/notify' }] }] } },
   }
   on('fs.read', (_, e) => {
-    const hit = Object.keys(HOOK_FILES).find(path => JSON.stringify(e).includes(`"${path}"`))
+    const hit = Object.keys(HOOK_FILES).find(path => JSON.stringify({ ...e, path: posix(e.path) }).includes(`"${path}"`))
     // Explore runs a forked skill: the person typed `/code-review`, and the skill became this subagent.
-    if (JSON.stringify(e).includes('agent-ab12.forked-skill.json')) return { value: JSON.stringify({ skillName: 'code-review' }) }
+    if (JSON.stringify({ ...e, path: posix(e.path) }).includes('agent-ab12.forked-skill.json')) return { value: JSON.stringify({ skillName: 'code-review' }) }
     return hit ? { value: JSON.stringify(HOOK_FILES[hit]) } : {
     value: JSON.stringify(
-      JSON.stringify(e).includes('cd34')
+      JSON.stringify({ ...e, path: posix(e.path) }).includes('cd34')
         ? { agentType: 'general-purpose', description: 'read a file', toolUseId: 'k9', parentAgentId: 'ab12', model: 'haiku', finished: true }
         : { agentType: 'Explore', description: 'scan the repo', toolUseId: 't1', model: 'haiku', finished: true },
     ),

@@ -3,6 +3,10 @@ import { clean, cleaned, parsed } from './digest/text'
 import { parseChildren } from './record/children'
 import { cut, fit, left, width } from './views/layout'
 
+// The engine hands a mock the path as the platform spells it: on Windows with backslashes, and a drive before a path
+// that named none. Read back as it was asked for, so one spelling answers on either.
+const posix = (path: string) => path.replaceAll('\\', '/').replace(/^[A-Za-z]:(?=\/)/, '')
+
 const PANE = {
   plugin: 'session-lens',
   component: 'Pane',
@@ -76,7 +80,7 @@ async function mountLens($: Parameters<TestBody>[0], on: Parameters<TestBody>[1]
   on('agent.list', () => ({ value: [] }))
   on('fs.list', () => ({ value: names.map(name => ({ name, kind: 'file' as const, size: 100, mtimeMs: 0, isLink: false })) }))
   on('fs.read', (_, e) => {
-    const asked = JSON.stringify(e)
+    const asked = JSON.stringify({ ...e, path: posix(e.path) })
     if (asked.includes('agent-ab12.meta.json')) return { value: JSON.stringify(META) }
     const path = Object.keys(files).find(p => asked.includes(`"${p}"`))
     return path ? { value: files[path] ?? '' } : { deny: 'ENOENT' }
